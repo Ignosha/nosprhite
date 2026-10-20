@@ -43,12 +43,24 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       - run: npm ci
-      # One .dmg that runs on both Apple silicon and Intel Macs.
+      # Updates are signed with the key in the TAURI_SIGNING_PRIVATE_KEY secret.
+      # Until that secret exists the app still builds, just without updates.
+      - name: Is the update signing key set?
+        id: sign
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then echo "extra=" >> "$GITHUB_OUTPUT"; else echo "extra=--config src-tauri/no-updater.json" >> "$GITHUB_OUTPUT"; echo "::warning::No TAURI_SIGNING_PRIVATE_KEY secret: building without self-update files."; fi
+      # One .dmg that runs on both Apple silicon and Intel Macs, plus the signed
+      # update bundle and latest.json the app checks for new versions.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
-          args: --target universal-apple-darwin
+          args: --target universal-apple-darwin ${{ steps.sign.outputs.extra }}
+          includeUpdaterJson: true
           tagName: v__VERSION__
           releaseName: Nosprhite v__VERSION__
           releaseBody: Download the .dmg below, open it, and drag Nosprhite to Applications. The first time, right-click it and choose Open.

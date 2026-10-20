@@ -1,6 +1,6 @@
 [package]
 name = "nosprhite"
-version = "0.1.1"
+version = "0.1.2"
 description = "Nosprhite: a sprite village of AI helpers for NOSHASHI"
 edition = "2021"
 
@@ -15,6 +15,9 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-http = "2"
 tauri-plugin-store = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }

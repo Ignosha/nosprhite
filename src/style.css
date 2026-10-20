@@ -45,3 +45,6 @@ input,select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(
 .note{color:var(--muted);font-size:12.5px;line-height:1.5;margin:6px 0}
 .empty{color:var(--muted);text-align:center;padding:30px 10px}
 .pill{display:inline-block;font:11px ui-monospace,monospace;border:1px solid var(--rule);border-radius:6px;padding:1px 6px}
+.update{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 16px;background:#fff6a0;color:#2b2238;font:600 14px inherit;border-bottom:2px solid #2b2238}
+.update[hidden]{display:none}
+textarea{font-family:inherit}

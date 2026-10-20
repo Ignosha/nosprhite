@@ -35,6 +35,13 @@ export const TOOL_HELP = `Tools (read-only). Call one with {"tool": "<name>", "a
 - recent_commits {}: the last 10 commit messages
 - noshashi_api {"path": "/api/book-health"}: live, read-only NOSHASHI data (book-health, book, authority, issuer-state, treasury)`;
 
+/** A whole repository file, for the app's own use (not offered to the model, so not cut short). */
+export async function fetchRepoFile(ctx: ToolContext, path: string): Promise<string | null> {
+  if (!safePath(path)) return null;
+  const r = await ctx.f(`https://api.github.com/repos/${ctx.owner}/${ctx.repo}/contents/${path}`, { method: "GET", headers: headers(ctx, true), signal: ctx.signal });
+  return r.ok ? r.text() : null;
+}
+
 export async function runTool(ctx: ToolContext, name: string, args: Record<string, unknown>): Promise<string> {
   const base = `https://api.github.com/repos/${ctx.owner}/${ctx.repo}`;
   const get = async (url: string, raw = false) => {

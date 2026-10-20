@@ -11,6 +11,39 @@ without you: everything it makes waits in your inbox for a click.
 | Coin | Market | Proposes an honest way to earn money, sometimes with a drafted Stripe offer |
 | Bolt | Workshop | Reads one file in the repo and proposes one concrete fix |
 | Owl | Critic's tower | Says which of the village's ideas is weakest or strongest |
+| Wren | Post office | Writes an outreach email about NOSHASHI to one verified institution, for you to send |
+
+## Selling, inside and outside crypto
+
+- **Digital products.** Coin writes a whole product (a guide, checklist, template
+  pack or report, in any market) with a price. Press **Publish & sell**: the product
+  goes in a secret Gist on your GitHub and Stripe gets a payment link whose
+  thank-you page shows buyers the download link. After that it sells itself;
+  nobody has to send anything. (A secret Gist is unlisted, but anyone with the
+  link can read it, so a buyer could share it. That is the trade-off of free.)
+- **Services.** Setup, reviews or consulting, with a payment link. You deliver these.
+- **Outreach.** Wren only writes to institutions in NOSHASHI's outreach list whose
+  published address has been verified and who have never been contacted. The
+  model names the institution; the app looks up the address. **Open in Mail**
+  opens the email in your mail app with your signature; nothing is sent until
+  you press Send. Add your postal address to the signature first (US law).
+- **Ideas.** Fern proposes products for any market, preferring ones that run on
+  their own once built.
+
+## Updates
+
+Nosprhite checks for a new version when it opens and every six hours, and shows
+**Install and restart** when one is ready. Updates are signed: the app refuses
+any update not signed with the project's key. Two one-time steps switch this on:
+
+1. Repository **Settings › Secrets and variables › Actions › New repository
+   secret**: name `TAURI_SIGNING_PRIVATE_KEY`, value: the contents of the
+   `nosprhite-updater.key` file you were given. Keep a copy somewhere safe; if
+   it is lost, future versions cannot update older installs.
+2. Repository **Settings › General › Danger zone › Change visibility › Public**,
+   so the app can read new releases without a password. Nothing secret is in
+   the code: your keys live in your Mac's keychain, never in the repository.
+   (Public repositories also get unlimited free build minutes.)
 
 Every job: read with read-only tools → draft → a critic pass → the guard
 → your inbox. One job every 30 minutes by default.
@@ -45,8 +78,10 @@ Every job: read with read-only tools → draft → a critic pass → the guard
    npm run app:build      # or build an installer into src-tauri/target/release/bundle
    ```
 4. In **Settings**, paste your free AI key(s) under **Free AI**. Then add a GitHub fine-grained token for `Ignosha/noshashi` with
-   *Issues: read and write* and *Models: read*. That lets the village read the
-   repo, file issues you approve, and use GitHub Models' free tier as one more backup.
+   *Contents: read* and *Issues: read and write*, plus the account permissions
+   *Models: read* and *Gists: read and write*. That lets the village read the repo,
+   file issues you approve, publish products you sell, and use GitHub Models' free
+   tier as one more backup.
 5. Optional, for **Stripe**: add a *restricted* key (Stripe → Developers → API
    keys → Create restricted key) with **Write** on Products, Prices and Payment
    Links and **Read** on Balance and Payment Intents, and nothing else. Start
@@ -112,6 +147,6 @@ GitHub or Stripe write.
 ## Checks
 
 ```
-npm test         # 37 tests: the guard, the fences, the village
+npm test         # 46 tests: the guard, the fences, the village
 npm run build    # type check and build the window
 ```

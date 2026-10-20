@@ -12,13 +12,15 @@
  * tests/structure.test.ts fails the build if that ever changes.
  */
 
-export type Kind = "workload" | "idea" | "revenue" | "improvement" | "review";
+export type Kind = "workload" | "idea" | "revenue" | "improvement" | "review" | "outreach";
 
 export type Offer = {
   name: string;
   description: string;
   amount_usd: number;
   interval: "one_time" | "month" | "year";
+  /** Digital: the agent wrote the whole product and buyers get it automatically. Service: you deliver it. */
+  delivery: "digital" | "service";
 };
 
 export type Proposal = {
@@ -26,16 +28,24 @@ export type Proposal = {
   title?: string;
   body?: string;
   offer?: Partial<Offer> | null;
+  /** The full text of a digital product, sold through the offer. */
+  product?: string | null;
+  /** For outreach: the institution's name exactly as listed, and the email subject. */
+  recipient?: string | null;
+  subject?: string | null;
   reason?: string;
 };
 
 export type Checked =
-  | { ok: true; title: string; body: string; offer: Offer | null }
+  | { ok: true; title: string; body: string; offer: Offer | null; product: string | null; recipient: string | null; subject: string | null }
   | { ok: true; noop: true; reason: string }
   | { ok: false; reason: string };
 
 export const MAX_TITLE = 120;
 export const MAX_BODY = 6000;
+export const MAX_PRODUCT = 15000;
+/** Outreach stays short: the institutional-outreach rule is under 150 words. */
+export const MAX_OUTREACH_WORDS = 170;
 
 /** Price limits for a drafted offer. Anything outside is refused, not clamped. */
 export const OFFER_LIMITS = { min: 1, max: 5000, maxMonthly: 1000 };
@@ -74,6 +84,9 @@ export function checkOffer(raw: Partial<Offer> | null | undefined): { ok: true; 
   const description = String(raw.description ?? "").trim();
   const amount = Number(raw.amount_usd);
   const interval = raw.interval ?? "one_time";
+  const delivery = raw.delivery ?? "service";
+  if (delivery !== "digital" && delivery !== "service") return { ok: false, reason: "delivery must be digital or service" };
+  if (delivery === "digital" && interval !== "one_time") return { ok: false, reason: "a digital product is sold once, not as a subscription" };
   if (name.length < 3 || name.length > 80) return { ok: false, reason: "offer name must be 3 to 80 characters" };
   if (description.length < 10 || description.length > 500) return { ok: false, reason: "offer description must be 10 to 500 characters" };
   if (!["one_time", "month", "year"].includes(interval)) return { ok: false, reason: "interval must be one_time, month or year" };
@@ -82,7 +95,7 @@ export function checkOffer(raw: Partial<Offer> | null | undefined): { ok: true; 
   if (interval === "month" && amount > OFFER_LIMITS.maxMonthly) return { ok: false, reason: `a monthly price above $${OFFER_LIMITS.maxMonthly} needs a person, not the agent` };
   const rule = brokenRule(`${name}\n${description}`);
   if (rule) return { ok: false, reason: rule };
-  return { ok: true, offer: { name, description, amount_usd: amount, interval: interval as Offer["interval"] } };
+  return { ok: true, offer: { name, description, amount_usd: amount, interval: interval as Offer["interval"], delivery } };
 }
 
 /** Check one proposal against the rules and against what the agent already has. */
@@ -106,7 +119,18 @@ export function check(p: Proposal | null, existingTitles: string[]): Checked {
     if (!o.ok) return { ok: false, reason: `offer refused: ${o.reason}` };
     offer = o.offer;
   }
-  return { ok: true, title, body, offer };
+  const product = p.product ? String(p.product).trim() : null;
+  if (product) {
+    if (product.length < 300) return { ok: false, reason: "the product is too thin to sell" };
+    if (product.length > MAX_PRODUCT) return { ok: false, reason: "the product is too long" };
+    const r = brokenRule(product);
+    if (r) return { ok: false, reason: `product: ${r}` };
+  }
+  if (offer?.delivery === "digital" && !product) return { ok: false, reason: "a digital offer needs the finished product" };
+  const recipient = p.recipient ? String(p.recipient).trim() : null;
+  const subject = p.subject ? String(p.subject).trim() : null;
+  if (subject && (subject.length > 120 || brokenRule(subject))) return { ok: false, reason: "subject refused" };
+  return { ok: true, title, body, offer, product, recipient, subject };
 }
 
 /** The first complete JSON object in a model's reply, or null. Models wrap JSON in prose and fences. */

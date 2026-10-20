@@ -1,7 +1,7 @@
 {
   "name": "nosprhite",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A tiny sprite village of AI helpers that works on NOSHASHI while you're away. Free models only, guarded, with an off switch.",
   "type": "module",
   "scripts": {
@@ -15,7 +15,10 @@
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-http": "^2.5.0",
-    "@tauri-apps/plugin-store": "^2.4.0"
+    "@tauri-apps/plugin-opener": "^2.7.2",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-store": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.14.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.5",

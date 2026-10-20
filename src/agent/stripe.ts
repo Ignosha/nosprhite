@@ -1,8 +1,8 @@
 /*
  * The only code that talks to Stripe. Reading (balance, recent payments) is
  * used by the Money tab. Creating an offer is called only from the inbox's
- * "Create payment link" button, after you have read the offer, and never
- * from the agent loop. Use a restricted key: see README.md.
+ * "Create payment link" and "Publish & sell" buttons, after you have read the
+ * offer, and never from the agent loop. Use a restricted key: see README.md.
  */
 import type { Fetch } from "./net";
 import type { Offer } from "./guard";
@@ -47,11 +47,17 @@ export async function recentPayments(f: Fetch, key: string): Promise<Array<{ id:
 }
 
 /** Product, price and payment link, in that order. Returns the link to share. */
-export async function createOffer(f: Fetch, key: string, offer: Offer): Promise<{ url: string; product: string; price: string }> {
+export async function createOffer(f: Fetch, key: string, offer: Offer, thankYou?: string): Promise<{ url: string; product: string; price: string }> {
   const product = (await call(f, key, "POST", "products", { name: offer.name, description: offer.description, "metadata[source]": "nosprhite" })) as { id: string };
   const priceParams: Record<string, string | number> = { product: product.id, currency: "usd", unit_amount: offer.amount_usd * 100 };
   if (offer.interval !== "one_time") priceParams["recurring[interval]"] = offer.interval;
   const price = (await call(f, key, "POST", "prices", priceParams)) as { id: string };
-  const link = (await call(f, key, "POST", "payment_links", { "line_items[0][price]": price.id, "line_items[0][quantity]": 1 })) as { url: string };
+  const linkParams: Record<string, string | number> = { "line_items[0][price]": price.id, "line_items[0][quantity]": 1 };
+  // A digital product is delivered on Stripe's own thank-you page.
+  if (thankYou) {
+    linkParams["after_completion[type]"] = "hosted_confirmation";
+    linkParams["after_completion[hosted_confirmation][custom_message]"] = thankYou.slice(0, 500);
+  }
+  const link = (await call(f, key, "POST", "payment_links", linkParams)) as { url: string };
   return { url: link.url, product: product.id, price: price.id };
 }

@@ -7,11 +7,12 @@
  * This file deliberately imports nothing that writes to GitHub or Stripe
  * (see tests/structure.test.ts). Stop aborts the request in flight.
  */
-import { check, extractJson, type Proposal } from "./guard";
+import { check, extractJson, MAX_OUTREACH_WORDS, type Proposal } from "./guard";
+import { addressFor, eligible, parseContacts, type Contact } from "./outreach";
 import { chat, detectEngines, QuotaError, type Engine, type Message } from "./llm";
 import { JOBS, nextJob, type Job } from "./jobs";
 import { CONSTITUTION, ANSWER_FORMAT } from "./constitution";
-import { runTool, TOOL_HELP } from "./tools";
+import { fetchRepoFile, runTool, TOOL_HELP } from "./tools";
 import { net } from "./net";
 import { getSecret, saveState, today, type Item, type State } from "./store";
 
@@ -144,6 +145,22 @@ export class Agent {
       say("library", `Reading ${t.tool.replace("_", " ")}…`);
       looked.push(`[${t.tool} ${JSON.stringify(t.args)}]\n${await runTool(toolCtx, t.tool, t.args)}`);
     }
+    // Outreach: only verified, never-contacted institutions from NOSHASHI's own list.
+    let contacts: Contact[] = [];
+    if (job.id === "outreach") {
+      say("post", "Checking the address book…");
+      const csv = await fetchRepoFile(toolCtx, "outreach/contacts.csv");
+      const drafted = new Set(this.state.inbox.filter((i) => i.mail).map((i) => i.mail!.institution.toLowerCase()));
+      contacts = eligible(parseContacts(csv ?? ""), drafted).slice(0, 12);
+      if (contacts.length === 0) {
+        this.hooks.log("Wren has nobody new to write to: every verified institution has been drafted or contacted.");
+        say("home", "Nobody new to write to");
+        return null;
+      }
+      looked.push(`[eligible institutions: name the recipient exactly as written]\n${contacts
+        .map((c) => `- ${c.institution} (${c.segment}, ${c.country}): ${c.fit.slice(0, 160)}`)
+        .join("\n")}`);
+    }
     const known = this.state.inbox.filter((i) => i.status !== "dismissed").slice(0, 25).map((i) => `- ${i.title}`).join("\n") || "- (none yet)";
 
     const messages: Message[] = [
@@ -193,6 +210,22 @@ export class Agent {
       say("home", "Set aside");
       return null;
     }
+    let mail: Item["mail"] = null;
+    if (job.id === "outreach") {
+      const contact = addressFor(verdict.recipient, contacts);
+      if (!contact) {
+        this.hooks.log(`The guard refused Wren's email: "${verdict.recipient ?? "nobody"}" is not on the verified list.`, "bad");
+        say("home", "Refused by the guard");
+        return null;
+      }
+      const words = verdict.body.split(/\s+/).filter(Boolean).length;
+      if (words > MAX_OUTREACH_WORDS || !verdict.subject) {
+        this.hooks.log(`The guard refused Wren's email: ${verdict.subject ? `${words} words is too long` : "no subject"}.`, "bad");
+        say("home", "Refused by the guard");
+        return null;
+      }
+      mail = { to: contact.email, institution: contact.institution, subject: verdict.subject };
+    }
     return {
       id: crypto.randomUUID(),
       kind: job.id,
@@ -200,6 +233,8 @@ export class Agent {
       title: verdict.title,
       body: verdict.body,
       offer: job.id === "revenue" ? verdict.offer : null,
+      product: job.id === "revenue" ? verdict.product : null,
+      mail,
       status: "new",
       created: new Date().toISOString(),
       engine: engineUsed.label,

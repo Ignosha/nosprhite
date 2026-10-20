@@ -52,6 +52,7 @@ export const BUILDINGS: Building[] = [
   { key: "library", label: "Library", bx: 2, by: 8, w: 3, d: 3, h: 13, wall: "#efe0d0", wallDark: "#cdb8a4", roof: "#d9534f", roofType: "pyramid", icon: "book" },
   { key: "tower", label: "Critic's tower", bx: 9, by: 7, w: 2, d: 2, h: 24, wall: "#d8d2e8", wallDark: "#b2a9cc", roof: "#7b5cc4", roofType: "spire", icon: "glass" },
   { key: "workshop", label: "Workshop", bx: 15, by: 8, w: 3, d: 2, h: 10, wall: "#e9d6bf", wallDark: "#c7ae91", roof: "#e8913a", roofType: "pyramid", icon: "hammer", chimney: true },
+  { key: "post", label: "Post office", bx: 16, by: 5, w: 2, d: 2, h: 9, wall: "#e4f2ef", wallDark: "#bcd8d2", roof: "#2bb3a3", roofType: "pyramid", icon: "stamp" },
   { key: "inbox", label: "Your inbox", bx: 7, by: 12, w: 2, d: 2, h: 9, wall: "#e6e6ea", wallDark: "#c2c2cc", roof: "#5a6170", roofType: "pyramid", icon: "letter" },
   { key: "home", label: "Houses", bx: 12, by: 12, w: 4, d: 2, h: 9, wall: "#f6e7cf", wallDark: "#d8c3a2", roof: "#c94f4b", roofType: "pyramid", icon: "heart", chimney: true },
 ];
@@ -157,6 +158,7 @@ const ICONS = {
   hammer: ["AAAAA..", "AAAAA..", "..NN...", "..NN...", "..NN...", "..NN...", "......."],
   letter: ["WWWWWWW", "WMWWWMW", "WWMWMWW", "WWWMWWW", "WWWWWWW", ".......", "......."],
   heart: [".RR.RR.", "RRRRRRR", "RRRRRRR", ".RRRRR.", "..RRR..", "...R...", "......."],
+  stamp: ["RWRWRWR", "WYYYYYW", "RYRRRYR", "WYRWRYW", "RYRRRYR", "WYYYYYW", "RWRWRWR"],
   zz: ["OOOO", "..O.", ".O..", "OOOO"],
 };
 
@@ -227,6 +229,7 @@ export const VILLAGERS = [
   { name: "Coin", colour: "#e5b33a", home: "market" },
   { name: "Bolt", colour: "#e8913a", home: "workshop" },
   { name: "Owl", colour: "#7b5cc4", home: "tower" },
+  { name: "Wren", colour: "#2bb3a3", home: "post" },
 ];
 
 type Mode = "idle" | "walk" | "work" | "sleep" | "cheer";
@@ -258,7 +261,7 @@ export function step(v: { x: number; y: number }, target: { x: number; y: number
   return { x: v.x + (dx / dist) * speed, y: v.y + (dy / dist) * speed, arrived: false };
 }
 
-const SLEEP_SPOTS: Array<[number, number]> = [[10, 15], [12, 15], [14, 15], [16, 15], [8, 15]];
+const SLEEP_SPOTS: Array<[number, number]> = [[10, 15], [12, 15], [14, 15], [16, 15], [8, 15], [6, 15]];
 
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; max: number; colour: string; kind: "dot" | "zz" | "smoke" | "star" };
 
@@ -440,6 +443,7 @@ export class World {
       library: [["#ffffff", "#efe0d0"], "dot"],
       tower: [["#d8d2e8", "#ffffff"], "star"],
       board: [["#ffffff", "#9aa3b5"], "dot"],
+      post: [["#ffffff", "#2bb3a3", "#e0564f"], "star"],
     };
     const [colours, kind] = kinds[v.at] ?? [["#ffffff"], "dot"];
     this.burst(v, 2, colours, kind);

@@ -12,8 +12,8 @@ describe("the agent cannot act on its own", () => {
   for (const file of ["loop.ts", "tools.ts", "jobs.ts", "llm.ts"]) {
     it(`${file} imports no writer`, () => {
       const src = read(file);
-      expect(src).not.toMatch(/from\s+["']\.\/(github|stripe)["']/);
-      expect(src).not.toMatch(/fileIssue|createOffer|secret_set|secret_delete|mail_send|mail_save_draft/);
+      expect(src).not.toMatch(/from\s+["']\.\/(github|stripe|publish)["']/);
+      expect(src).not.toMatch(/fileIssue|createOffer|publishGist|openUrl|mailto|secret_set|secret_delete|mail_send|mail_save_draft/);
     });
   }
 

@@ -16,6 +16,8 @@ export type Settings = {
   githubModel: string;
   intervalMin: number;
   githubDailyCap: number;
+  /** Added under every outreach email. Include a postal address: US law (CAN-SPAM) requires one. */
+  signature: string;
 };
 
 export type Item = {
@@ -25,7 +27,11 @@ export type Item = {
   title: string;
   body: string;
   offer: Offer | null;
-  status: "new" | "filed" | "offer-created" | "dismissed";
+  /** The full text of a digital product, when the offer sells one. */
+  product?: string | null;
+  /** For outreach: who it goes to (looked up from the verified list, never written by the model). */
+  mail?: { to: string; institution: string; subject: string } | null;
+  status: "new" | "filed" | "offer-created" | "opened-in-mail" | "dismissed";
   created: string;
   engine: string;
   link?: string;
@@ -52,6 +58,7 @@ export const DEFAULTS: State = {
     githubModel: "openai/gpt-4.1-mini",
     intervalMin: 30,
     githubDailyCap: 40,
+    signature: "Joshua Edmond\nFounder, NOSHASHI · https://www.noshashi.app\n[your postal address]\nNot relevant? Reply \"stop\" and you won't hear from us again.",
   },
   running: false,
   jobIndex: -1,

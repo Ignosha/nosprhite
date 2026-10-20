@@ -1,7 +1,8 @@
 /*
  * The window: the off switch, the village, and the inbox where every result
- * waits for you. The only paths to GitHub and Stripe writes are the buttons
- * in renderInbox(); the agent loop cannot reach them.
+ * waits for you. The only paths to GitHub, Gist and Stripe writes, and to
+ * opening an email in your mail app, are the buttons in renderInbox(); the
+ * agent loop cannot reach them.
  */
 import { Agent } from "./agent/loop";
 import { World } from "./world";
@@ -11,6 +12,8 @@ import { net } from "./agent/net";
 import { fileIssue } from "./agent/github";
 import { balance, createOffer, keyMode, recentPayments } from "./agent/stripe";
 import { checkOffer } from "./agent/guard";
+import { publishGist } from "./agent/publish";
+import { mailto } from "./agent/outreach";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -79,9 +82,27 @@ document.querySelectorAll<HTMLButtonElement>(".tabs button").forEach((b) =>
 );
 
 /* ── inbox ────────────────────────────────────────────────────────── */
+/** Links open in your browser (or mail app), never inside the village window. */
+async function openExternal(url: string) {
+  if (inTauri) {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
+  } else window.open(url, "_blank", "noopener");
+}
+
+document.addEventListener("click", (e) => {
+  const a = (e.target as HTMLElement).closest<HTMLAnchorElement>("a[href^='http']");
+  if (!a) return;
+  e.preventDefault();
+  void openExternal(a.href);
+});
+
+const words = (t: string) => t.split(/\s+/).filter(Boolean).length;
+
 function renderInbox() {
   const open = state.inbox.filter((i) => i.status !== "dismissed");
-  $("count").textContent = open.filter((i) => i.status === "new").length ? `(${open.filter((i) => i.status === "new").length})` : "";
+  const fresh = open.filter((i) => i.status === "new").length;
+  $("count").textContent = fresh ? `(${fresh})` : "";
   if (open.length === 0) {
     $("tab-inbox").innerHTML = `<p class="empty">Nothing yet. Switch the agent on and the villagers will start bringing you work.</p>`;
     return;
@@ -89,21 +110,38 @@ function renderInbox() {
   $("tab-inbox").innerHTML = open
     .map((i) => {
       const offer = i.offer
-        ? `<div class="offer"><b>Drafted offer</b> (not created): ${esc(i.offer.name)} · $${esc(i.offer.amount_usd)}${i.offer.interval === "one_time" ? " one-time" : ` per ${esc(i.offer.interval)}`}<br>${esc(i.offer.description)}</div>`
+        ? `<div class="offer"><b>Drafted offer</b> (not created yet): ${esc(i.offer.name)} · $${esc(i.offer.amount_usd)}${i.offer.interval === "one_time" ? " one-time" : ` per ${esc(i.offer.interval)}`} · ${i.offer.delivery === "digital" ? "digital: buyers get it automatically" : "service: you deliver it"}<br>${esc(i.offer.description)}</div>`
         : "";
-      const done = i.link ? `<p class="note good">${i.status === "filed" ? "Filed" : "Payment link"}: <a href="${esc(i.link)}" target="_blank" rel="noopener">${esc(i.link)}</a></p>` : "";
+      const product = i.product ? `<details class="offer"><summary>Read the product (${words(i.product)} words)</summary><pre>${esc(i.product)}</pre></details>` : "";
+      const mail = i.mail ? `<div class="offer"><b>To:</b> ${esc(i.mail.institution)} &lt;${esc(i.mail.to)}&gt;<br><b>Subject:</b> ${esc(i.mail.subject)}<br><span class="note">From NOSHASHI's verified outreach list. Your signature is added when it opens.</span></div>` : "";
+      const done = i.link
+        ? `<p class="note good">${i.status === "filed" ? "Filed" : i.status === "opened-in-mail" ? "Opened in Mail" : "Payment link"}: <a href="${esc(i.link)}">${esc(i.link)}</a></p>`
+        : i.status === "opened-in-mail"
+          ? `<p class="note good">Opened in your mail app. Once you send it, tell Claude so the outreach list is updated.</p>`
+          : "";
+      const digital = i.offer?.delivery === "digital" && i.product;
       return `<article class="item" data-id="${esc(i.id)}">
         <h3>${esc(i.title)}</h3>
         <div class="meta">${esc(i.villager)} · ${esc(i.kind)} · ${esc(new Date(i.created).toLocaleString())} · <span class="pill">${esc(i.engine)}</span></div>
-        <pre>${esc(i.body)}</pre>${offer}${done}
+        ${mail}<pre>${esc(i.body)}</pre>${offer}${product}${done}
         <div class="row">
-          ${i.status === "new" ? `<button class="btn" data-act="file">File on GitHub</button>` : ""}
-          ${i.offer && i.status !== "offer-created" ? `<button class="btn" data-act="offer">Create payment link…</button>` : ""}
+          ${i.mail && i.status === "new" ? `<button class="btn" data-act="mail">Open in Mail…</button>` : ""}
+          ${!i.mail && i.status === "new" ? `<button class="btn${i.offer ? " ghost" : ""}" data-act="file">File on GitHub</button>` : ""}
+          ${digital && i.status !== "offer-created" ? `<button class="btn" data-act="sell">Publish &amp; sell…</button>` : ""}
+          ${i.offer && !digital && i.status !== "offer-created" ? `<button class="btn" data-act="offer">Create payment link…</button>` : ""}
           <button class="btn ghost" data-act="copy">Copy</button>
           <button class="btn ghost" data-act="dismiss">Dismiss</button>
         </div></article>`;
     })
     .join("");
+}
+
+/** A Stripe key, checked, and a clear sentence about what is about to be created. */
+async function stripeReady(): Promise<{ key: string; mode: string }> {
+  const key = await getSecret("stripe_key");
+  const mode = keyMode(key);
+  if (!key || mode === "invalid") throw new Error("Add a Stripe restricted key in Settings first.");
+  return { key, mode };
 }
 
 $("tab-inbox").addEventListener("click", async (e) => {
@@ -115,7 +153,7 @@ $("tab-inbox").addEventListener("click", async (e) => {
   btn.disabled = true;
   try {
     if (act === "dismiss") item.status = "dismissed";
-    if (act === "copy") await navigator.clipboard.writeText(`${item.title}\n\n${item.body}`);
+    if (act === "copy") await navigator.clipboard.writeText(`${item.title}\n\n${item.body}${item.product ? `\n\n${item.product}` : ""}`);
     if (act === "file") {
       const token = await getSecret("github_token");
       if (!token) throw new Error("Add a GitHub token in Settings to file issues.");
@@ -123,20 +161,40 @@ $("tab-inbox").addEventListener("click", async (e) => {
       item.status = "filed";
       log(`Filed "${item.title}" on GitHub.`, "good");
     }
+    if (act === "mail" && item.mail) {
+      const sig = state.settings.signature.trim();
+      if (/\[your postal address\]/.test(sig)) throw new Error("Add your postal address to the email signature in Settings first. US law (CAN-SPAM) requires one in every sales email.");
+      await openExternal(mailto(item.mail.to, item.mail.subject, `${item.body}\n\n${sig}`));
+      item.status = "opened-in-mail";
+      log(`Opened the email to ${item.mail.institution} in your mail app. Nothing is sent until you press Send there.`, "good");
+    }
     if (act === "offer") {
       // Checked again here, at the moment of creation, not only when drafted.
       const o = checkOffer(item.offer);
       if (!o.ok) throw new Error(`Offer refused: ${o.reason}`);
-      const key = await getSecret("stripe_key");
-      const mode = keyMode(key);
-      if (!key || mode === "invalid") throw new Error("Add a Stripe restricted key in Settings first.");
+      const { key, mode } = await stripeReady();
       const price = `$${o.offer.amount_usd}${o.offer.interval === "one_time" ? " one-time" : ` per ${o.offer.interval}`}`;
-      const sure = confirm(`Create this in Stripe (${mode.toUpperCase()} mode)?\n\n${o.offer.name}\n${price}\n\n${o.offer.description}\n\nThis creates a product, a price and a payment link. Nobody is charged until someone pays through the link.`);
+      const sure = confirm(`Create this in Stripe (${mode.toUpperCase()} mode)?\n\n${o.offer.name}\n${price}\n\n${o.offer.description}\n\nThis is a service: you deliver it after someone pays. This creates a product, a price and a payment link. Nobody is charged until someone pays through the link.`);
       if (!sure) return;
       const made = await createOffer(await net(), key, o.offer);
       item.link = made.url;
       item.status = "offer-created";
       log(`Created a ${mode} payment link for "${o.offer.name}".`, "good");
+    }
+    if (act === "sell") {
+      const o = checkOffer(item.offer);
+      if (!o.ok || !item.product) throw new Error(`Offer refused: ${o.ok ? "no product" : o.reason}`);
+      const { key, mode } = await stripeReady();
+      const token = await getSecret("github_token");
+      if (!token) throw new Error("Add a GitHub token (with Gists: Read and write) in Settings to publish products.");
+      const sure = confirm(`Publish and sell this (${mode.toUpperCase()} mode)?\n\n${o.offer.name} · $${o.offer.amount_usd} one-time\n\n1. The product (${words(item.product)} words) goes in a secret Gist on your GitHub: unlisted, readable by anyone with the link.\n2. Stripe gets a product, a price and a payment link.\n3. After paying, buyers see the Gist link on Stripe's thank-you page, automatically.\n\nRead the product first: you are the seller.`);
+      if (!sure) return;
+      const f = await net();
+      const gist = await publishGist(f, token, o.offer.name, item.product);
+      const made = await createOffer(f, key, o.offer, `Thank you for buying ${o.offer.name}! Your copy is here: ${gist}`);
+      item.link = made.url;
+      item.status = "offer-created";
+      log(`Published "${o.offer.name}" and created a ${mode} payment link. Share the link to sell it.`, "good");
     }
     await saveState(state);
     renderInbox();
@@ -209,10 +267,13 @@ async function renderSettings() {
       <h3 style="margin:18px 0 4px">GitHub and Stripe</h3>
       <label for="s-gh">GitHub token <span class="note">(${await has("github_token")})</span></label>
       <input id="s-gh" type="password" autocomplete="off" placeholder="Paste to replace; leave empty to keep">
-      <p class="note">A fine-grained token for ${esc(s.owner)}/${esc(s.repo)} with Issues: read and write, and Models: read. Used to read the repo, file issues you approve, and as one more free AI (GitHub Models).</p>
+      <p class="note">A fine-grained token for ${esc(s.owner)}/${esc(s.repo)} with Contents: read and Issues: read and write, plus the account permissions Models: read and Gists: read and write. Used to read the repo, file issues you approve, publish products you sell, and as one more free AI (GitHub Models).</p>
       <label for="s-stripe">Stripe restricted key <span class="note">(${await has("stripe_key")})</span></label>
       <input id="s-stripe" type="password" autocomplete="off" placeholder="rk_test_… or rk_live_…">
       <p class="note">Create it in Stripe › Developers › API keys › Restricted key, with Write on Products, Prices and Payment Links, and Read on Balance and Payment Intents. Nothing else. Start with a test key.</p>
+      <label for="s-sig">Email signature (added under every outreach email)</label>
+      <textarea id="s-sig" rows="4" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);font:13px inherit">${esc(s.signature)}</textarea>
+      <p class="note">Include your real name and a postal address. US law (CAN-SPAM) requires one in sales email, and the unsubscribe line keeps you on the right side of UK and EU rules.</p>
       <h3 style="margin:18px 0 4px">Village</h3>
       <label for="s-owner">Repository</label>
       <div class="row"><input id="s-owner" value="${esc(s.owner)}" style="flex:1"><input id="s-repo" value="${esc(s.repo)}" style="flex:1"></div>
@@ -235,6 +296,7 @@ async function renderSettings() {
       repo: v("s-repo") || s.repo,
       ollamaUrl: v("s-ollama") || s.ollamaUrl,
       pinned,
+      signature: ($("s-sig") as unknown as HTMLTextAreaElement).value.trim() || s.signature,
       intervalMin: Math.min(1440, Math.max(5, Number(v("s-interval")) || 30)),
       githubDailyCap: Math.min(150, Math.max(0, Number(v("s-cap")) || 0)),
     });
@@ -271,6 +333,36 @@ async function showEngine(verbose = false) {
   $("engine").textContent = text;
   if (verbose) alert(text);
 }
+
+/* ── updates ──────────────────────────────────────────────────────── */
+/*
+ * Nosprhite updates itself from its GitHub releases. Every update is signed,
+ * and the app refuses one that is not signed with the project's key.
+ */
+async function checkForUpdate() {
+  if (!inTauri) return;
+  try {
+    const { check } = await import("@tauri-apps/plugin-updater");
+    const update = await check();
+    if (!update) return;
+    const bar = $("update");
+    bar.hidden = false;
+    bar.innerHTML = `Nosprhite ${esc(update.version)} is ready. <button class="btn" id="update-go" type="button">Install and restart</button>`;
+    $("update-go").addEventListener("click", async () => {
+      bar.textContent = "Downloading the update…";
+      if (agent.running) await agent.stop("Paused for an update.");
+      await update.downloadAndInstall();
+      state.running = false;
+      await saveState(state);
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      await relaunch();
+    });
+  } catch (error) {
+    log(`Could not check for updates: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+void checkForUpdate();
+setInterval(() => void checkForUpdate(), 6 * 3600_000);
 
 renderInbox();
 renderLog();
