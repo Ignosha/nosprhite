@@ -88,10 +88,10 @@ export class Agent {
     try {
       const f = await net();
       const githubToken = await getSecret("github_token");
-      const keys = { github_token: githubToken, gemini_key: await getSecret("gemini_key"), groq_key: await getSecret("groq_key"), openrouter_key: await getSecret("openrouter_key") };
+      const keys = { github_token: githubToken, gemini_key: await getSecret("gemini_key"), groq_key: await getSecret("groq_key"), openrouter_key: await getSecret("openrouter_key"), mistral_key: await getSecret("mistral_key") };
       const engines = (await detectEngines(f, s, keys)).filter((e) => this.underCap(e));
       if (engines.length === 0) {
-        this.hooks.log("No free AI is available: add a free Gemini or Groq key in Settings (or today's free limits are used up).", "bad");
+        this.hooks.log("No free AI is available: add a free Groq key or your GitHub token in Settings (or today's free limits are used up).", "bad");
         this.schedule(Math.max(10, s.intervalMin));
         return;
       }

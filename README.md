@@ -25,9 +25,9 @@ Every job: read with read-only tools → draft → a critic pass → the guard
    If it still refuses, run this once in Terminal:
    `xattr -cr /Applications/Nosprhite.app`
 4. Get a **free AI key** (2 minutes, no card): open
-   [aistudio.google.com/apikey](https://aistudio.google.com/apikey), sign in with
-   Google, and press **Create API key**. For a second, very fast backup, also get one at
-   [console.groq.com/keys](https://console.groq.com/keys).
+   [console.groq.com/keys](https://console.groq.com/keys), sign up, and press
+   **Create API Key**. Your GitHub token (step 4 below) also works as a free AI,
+   and a free [Mistral key](https://console.mistral.ai/api-keys) makes a good backup.
 5. Open Nosprhite › **Settings**, paste the key(s) under **Free AI**, press
    **Save**, then flip the switch to **ON**.
 
@@ -37,7 +37,7 @@ Every job: read with read-only tools → draft → a critic pass → the guard
    [Rust](https://rustup.rs). On Windows also the
    [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
    (WebView2 and the C++ build tools); on Linux the WebKitGTK packages listed there.
-2. **Get a free AI key** as in step 4 above (Gemini, and optionally Groq).
+2. **Get a free AI key** as in step 4 above (Groq, and optionally Mistral).
 3. **Run Nosprhite** from this folder:
    ```
    npm install
@@ -71,21 +71,22 @@ village moves to the next:
 
 | Provider | Free limit (roughly) | Key |
 |---|---|---|
-| Google Gemini (Flash) | ~1,500 requests a day | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 | Groq (gpt-oss-120b) | ~1,000 requests a day | [console.groq.com/keys](https://console.groq.com/keys) |
-| OpenRouter free models | ~50 requests a day | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
+| Mistral (its largest free model) | set per account; see its Limits page | [console.mistral.ai/api-keys](https://console.mistral.ai/api-keys) |
 | GitHub Models | ~50 to 150 a day | your GitHub token |
+| OpenRouter free models | ~50 requests a day | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
+| Google Gemini (optional) | ~1,500 a day, where available | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
 | Ollama (optional) | your computer | none; only if it happens to be running |
 
 The app asks each provider which models it has and picks its best free one,
 so it keeps working when providers rename models. You can name a model in
 Settings instead. Free limits change; the village stops a little short of them.
 
-What to expect, honestly: Gemini Flash and gpt-oss-120b are far more capable
+What to expect, honestly: gpt-oss-120b, Mistral Large and Gemini Flash are far more capable
 than a small model on your computer, and handle one focused job well. They are
 still not Claude, and long, many-step work is not what the village asks of
 them. Some ideas will be weak; Owl's reviews and the Dismiss button are there
-for that. On the free tier, Google may use what is sent to improve its models.
+for that. On their free tiers, Mistral and Google may use what is sent to improve their models.
 The village only sends NOSHASHI's public code, public ledger data and its own
 drafts, never your keys. It works while your computer is on and the app is open.
 
@@ -101,8 +102,8 @@ Enforced in code (`src/agent/guard.ts`), not just asked of the model:
 - include secrets, email addresses or @-mentions, claim customers, SOC 2,
   signed builds or guarantees, or propose scraping, spam, fake reviews,
   sanctions or KYC evasion, or market manipulation;
-- reach any host except the free AI providers above (Gemini, Groq, OpenRouter,
-  GitHub Models, Ollama on your computer), GitHub, Stripe and noshashi.app (`src-tauri/capabilities/default.json`);
+- reach any host except the free AI providers above (Groq, Mistral, GitHub Models,
+  OpenRouter, Gemini, Ollama on your computer), GitHub, Stripe and noshashi.app (`src-tauri/capabilities/default.json`);
 - read secret-shaped files from the repository.
 
 `tests/structure.test.ts` fails if the agent loop ever gains a path to a
@@ -111,6 +112,6 @@ GitHub or Stripe write.
 ## Checks
 
 ```
-npm test         # 36 tests: the guard, the fences, the village
+npm test         # 37 tests: the guard, the fences, the village
 npm run build    # type check and build the window
 ```

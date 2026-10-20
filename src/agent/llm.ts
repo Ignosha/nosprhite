@@ -2,11 +2,13 @@
  * The free engines, best first. All of them speak the same OpenAI-style chat
  * API, so one client serves every provider; each needs only its own free key.
  *
- * - Google Gemini, free tier from Google AI Studio: the most capable free
- *   option, about 1,500 requests a day on its Flash models.
- * - Groq, free tier: very fast, with OpenAI's open gpt-oss-120b.
+ * - Groq, free tier: very fast, with OpenAI's open gpt-oss-120b. Available in
+ *   most regions with no card, so it is first.
+ * - Mistral, free mode: Mistral's own models; requests may be used for training.
+ * - GitHub Models, free tier with your GitHub token: no new account needed.
  * - OpenRouter, free models: about 50 requests a day; a backup.
- * - GitHub Models, free tier with your GitHub token: another backup.
+ * - Google Gemini, free tier: capable, but not offered in every region or to
+ *   every account, so it is optional.
  * - Ollama on this computer: optional, used last if it happens to be running.
  *
  * Model names change, so the app asks each provider which models it has and
@@ -18,7 +20,7 @@ import type { Fetch } from "./net";
 import type { SecretName } from "./store";
 
 export type Message = { role: "system" | "user" | "assistant"; content: string };
-export type ProviderId = "gemini" | "groq" | "openrouter" | "github" | "ollama";
+export type ProviderId = "groq" | "mistral" | "github" | "openrouter" | "gemini" | "ollama";
 
 export type Provider = {
   id: ProviderId;
@@ -32,10 +34,11 @@ export type Provider = {
 };
 
 export const PROVIDERS: Provider[] = [
-  { id: "gemini", label: "Google Gemini (free)", base: "https://generativelanguage.googleapis.com/v1beta/openai", key: "gemini_key", dailyCap: 1000, signup: "https://aistudio.google.com/apikey" },
   { id: "groq", label: "Groq (free)", base: "https://api.groq.com/openai/v1", key: "groq_key", dailyCap: 800, signup: "https://console.groq.com/keys" },
-  { id: "openrouter", label: "OpenRouter free models", base: "https://openrouter.ai/api/v1", key: "openrouter_key", dailyCap: 45, signup: "https://openrouter.ai/settings/keys" },
+  { id: "mistral", label: "Mistral (free)", base: "https://api.mistral.ai/v1", key: "mistral_key", dailyCap: 500, signup: "https://console.mistral.ai/api-keys" },
   { id: "github", label: "GitHub Models (free)", base: "https://models.github.ai/inference", key: "github_token", dailyCap: 40, signup: "https://github.com/settings/personal-access-tokens/new" },
+  { id: "openrouter", label: "OpenRouter free models", base: "https://openrouter.ai/api/v1", key: "openrouter_key", dailyCap: 45, signup: "https://openrouter.ai/settings/keys" },
+  { id: "gemini", label: "Google Gemini (free)", base: "https://generativelanguage.googleapis.com/v1beta/openai", key: "gemini_key", dailyCap: 1000, signup: "https://aistudio.google.com/apikey" },
   { id: "ollama", label: "Ollama on this computer", base: "http://localhost:11434/v1", key: null, dailyCap: 100000, signup: "https://ollama.com" },
 ];
 
@@ -66,6 +69,10 @@ export function pickModel(provider: ProviderId, listed: string[]): string | null
     case "groq": {
       const text = ids.filter((id) => !/(whisper|guard|tts|distil|playai|prompt-guard|orpheus)/i.test(id));
       return first([/gpt-oss-120b/, /(70b|72b|120b|235b|405b)/i, /qwen/i, /llama/i], text) ?? text[0] ?? null;
+    }
+    case "mistral": {
+      const text = ids.filter((id) => !/(embed|ocr|moderation|voxtral|pixtral|saba)/i.test(id));
+      return first([/^mistral-large-latest$/, /^mistral-medium-latest$/, /^magistral-medium-latest$/, /mistral-large/, /mistral-medium/, /mistral-small-latest/], text) ?? text[0] ?? null;
     }
     case "openrouter": {
       const free = ids.filter((id) => id.endsWith(":free"));

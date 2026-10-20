@@ -94,7 +94,7 @@ export async function saveState(state: State): Promise<void> {
   }
 }
 
-export type SecretName = "github_token" | "stripe_key" | "gemini_key" | "groq_key" | "openrouter_key";
+export type SecretName = "github_token" | "stripe_key" | "gemini_key" | "groq_key" | "openrouter_key" | "mistral_key";
 
 export async function getSecret(name: SecretName): Promise<string | null> {
   if (!inTauri()) return null;

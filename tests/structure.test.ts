@@ -28,6 +28,6 @@ describe("the agent cannot act on its own", () => {
     const caps = JSON.parse(readFileSync(new URL("../src-tauri/capabilities/default.json", import.meta.url), "utf8"));
     const http = caps.permissions.find((p: { identifier?: string }) => p.identifier === "http:default");
     const hosts = http.allow.map((a: { url: string }) => new URL(a.url.replace("*", "")).host).sort();
-    expect(hosts).toEqual(["127.0.0.1:11434", "api.github.com", "api.groq.com", "api.stripe.com", "generativelanguage.googleapis.com", "localhost:11434", "models.github.ai", "openrouter.ai", "www.noshashi.app"]);
+    expect(hosts).toEqual(["127.0.0.1:11434", "api.github.com", "api.groq.com", "api.mistral.ai", "api.stripe.com", "generativelanguage.googleapis.com", "localhost:11434", "models.github.ai", "openrouter.ai", "www.noshashi.app"]);
   });
 });

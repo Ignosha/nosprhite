@@ -37,6 +37,9 @@
         },
         {
           "url": "https://openrouter.ai/*"
+        },
+        {
+          "url": "https://api.mistral.ai/*"
         }
       ]
     }

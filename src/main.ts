@@ -180,10 +180,11 @@ function renderLog() {
 
 /* ── settings ─────────────────────────────────────────────────────── */
 /** The free AI keys, in the order the village uses them. */
-const AI_KEYS: Array<{ id: "gemini" | "groq" | "openrouter"; secret: SecretName; name: string; how: string }> = [
-  { id: "gemini", secret: "gemini_key", name: "Google Gemini key (free, recommended)", how: "aistudio.google.com/apikey › Create API key. Free, no card. The smartest free option." },
-  { id: "groq", secret: "groq_key", name: "Groq key (free)", how: "console.groq.com/keys › Create API Key. Free, no card. Very fast." },
+const AI_KEYS: Array<{ id: "groq" | "mistral" | "openrouter" | "gemini"; secret: SecretName; name: string; how: string }> = [
+  { id: "groq", secret: "groq_key", name: "Groq key (free, recommended)", how: "console.groq.com/keys › Create API Key. Free, no card, available in most regions. Runs OpenAI's open gpt-oss-120b." },
+  { id: "mistral", secret: "mistral_key", name: "Mistral key (free)", how: "console.mistral.ai/api-keys › choose the free plan › Create new key. Free, no card. Free-mode requests may be used to train Mistral's models." },
   { id: "openrouter", secret: "openrouter_key", name: "OpenRouter key (free models)", how: "openrouter.ai/settings/keys › Create key. Uses only its free models (about 50 a day)." },
+  { id: "gemini", secret: "gemini_key", name: "Google Gemini key (optional)", how: "aistudio.google.com/apikey › Create API key. Not available in every region or to every account; skip it if it does not work for you." },
 ];
 
 async function renderSettings() {
@@ -203,7 +204,7 @@ async function renderSettings() {
   $("tab-settings").innerHTML = `
     <form id="settings-form">
       <h3 style="margin:4px 0">Free AI</h3>
-      <p class="note">Add at least one. The village uses them in this order and moves to the next when one reaches its free daily limit. Each picks its provider's best free model by itself unless you name one.</p>
+      <p class="note">Add at least one; Groq is the easiest. Your GitHub token below also counts as a free AI. The village uses them in this order and moves to the next when one reaches its free daily limit. Each picks its provider's best free model by itself unless you name one.</p>
       ${aiRows}
       <h3 style="margin:18px 0 4px">GitHub and Stripe</h3>
       <label for="s-gh">GitHub token <span class="note">(${await has("github_token")})</span></label>
@@ -261,11 +262,12 @@ async function showEngine(verbose = false) {
     gemini_key: await getSecret("gemini_key"),
     groq_key: await getSecret("groq_key"),
     openrouter_key: await getSecret("openrouter_key"),
+    mistral_key: await getSecret("mistral_key"),
   };
   const engines = await detectEngines(await net(), state.settings, keys);
   const text = engines.length
     ? `AI: ${engines.map((e) => e.label).join(", then ")}`
-    : "AI: none yet. Add a free Gemini or Groq key in Settings.";
+    : "AI: none yet. Add a free Groq key (or your GitHub token) in Settings.";
   $("engine").textContent = text;
   if (verbose) alert(text);
 }

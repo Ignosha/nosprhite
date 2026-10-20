@@ -27,6 +27,10 @@ describe("engines pick the best free model each provider lists", () => {
     expect(pickModel("groq", ["whisper-large-v3", "meta-llama/llama-guard-4-12b", "qwen/qwen3-32b", "openai/gpt-oss-120b"])).toBe("openai/gpt-oss-120b");
     expect(pickModel("groq", ["whisper-large-v3", "qwen/qwen3-32b"])).toBe("qwen/qwen3-32b");
   });
+  it("Mistral: its largest general model, never embeddings or OCR", () => {
+    expect(pickModel("mistral", ["mistral-embed", "mistral-ocr-latest", "mistral-small-latest", "mistral-large-latest"])).toBe("mistral-large-latest");
+    expect(pickModel("mistral", ["mistral-embed", "mistral-small-latest"])).toBe("mistral-small-latest");
+  });
   it("OpenRouter: only free models", () => {
     expect(pickModel("openrouter", ["openai/gpt-4o", "deepseek/deepseek-chat-v3:free", "meta-llama/llama-3.3-70b-instruct:free"])).toBe("deepseek/deepseek-chat-v3:free");
     expect(pickModel("openrouter", ["openai/gpt-4o"])).toBeNull();

@@ -1,6 +1,6 @@
 [package]
 name = "nosprhite"
-version = "0.1.0"
+version = "0.1.1"
 description = "Nosprhite: a sprite village of AI helpers for NOSHASHI"
 edition = "2021"
 
