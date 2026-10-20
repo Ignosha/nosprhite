@@ -101,8 +101,8 @@ Enforced in code (`src/agent/guard.ts`), not just asked of the model:
 - include secrets, email addresses or @-mentions, claim customers, SOC 2,
   signed builds or guarantees, or propose scraping, spam, fake reviews,
   sanctions or KYC evasion, or market manipulation;
-- reach any host except Ollama on your computer, GitHub, GitHub Models, Stripe
-  and noshashi.app (`src-tauri/capabilities/default.json`);
+- reach any host except the free AI providers above (Gemini, Groq, OpenRouter,
+  GitHub Models, Ollama on your computer), GitHub, Stripe and noshashi.app (`src-tauri/capabilities/default.json`);
 - read secret-shaped files from the repository.
 
 `tests/structure.test.ts` fails if the agent loop ever gains a path to a
@@ -111,6 +111,6 @@ GitHub or Stripe write.
 ## Checks
 
 ```
-npm test         # 32 tests: the guard, the fences, the village
+npm test         # 36 tests: the guard, the fences, the village
 npm run build    # type check and build the window
 ```
