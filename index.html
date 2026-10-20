@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nosprhite</title>
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="/app-icon.png" alt="" width="28" height="28"><b>Nosprhite</b></div>
+  <div class="status" id="status" role="status" aria-live="polite">Off. The village is asleep.</div>
+  <button class="switch" id="power" type="button" aria-pressed="false"><span class="knob"></span><span class="label" id="power-label">OFF</span></button>
+</header>
+<main class="layout">
+  <section class="village">
+    <canvas id="world" aria-label="The village: each helper walks to the building for its job"></canvas>
+    <p class="hint" id="engine">Engine: looking…</p>
+  </section>
+  <section class="panel">
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="inbox" aria-selected="true">Inbox <span id="count"></span></button>
+      <button role="tab" data-tab="money">Money</button>
+      <button role="tab" data-tab="log">Log</button>
+      <button role="tab" data-tab="settings">Settings</button>
+    </nav>
+    <div class="tab" id="tab-inbox"></div>
+    <div class="tab" id="tab-money" hidden></div>
+    <div class="tab" id="tab-log" hidden></div>
+    <div class="tab" id="tab-settings" hidden></div>
+  </section>
+</main>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

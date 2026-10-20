@@ -1,0 +1,56 @@
+# Builds the Mac app on GitHub's free runners and attaches the .dmg to a
+# release. Runs when you push to main, or from Actions › Build the Mac app ›
+# Run workflow.
+#
+# The app is not signed with an Apple Developer certificate (that costs
+# $99/year), so the first time you open it macOS will warn you: right-click
+# the app and choose Open. See README.md.
+name: Build the Mac app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-mac
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  mac:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - run: npm ci
+      # One .dmg that runs on both Apple silicon and Intel Macs.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --target universal-apple-darwin
+          tagName: v__VERSION__
+          releaseName: Nosprhite v__VERSION__
+          releaseBody: Download the .dmg below, open it, and drag Nosprhite to Applications. The first time, right-click it and choose Open.
+          releaseDraft: false
+          prerelease: false
