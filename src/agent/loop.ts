@@ -66,15 +66,17 @@ export class Agent {
   }
 
   private countCall(engine: Engine) {
-    if (engine.kind !== "github") return;
-    if (this.state.githubCalls.day !== today()) this.state.githubCalls = { day: today(), count: 0 };
-    this.state.githubCalls.count += 1;
+    const id = engine.provider.id;
+    const c = this.state.calls[id];
+    this.state.calls[id] = c && c.day === today() ? { day: c.day, count: c.count + 1 } : { day: today(), count: 1 };
   }
 
+  /** Each free provider has a daily limit; the village stops short of it. */
   private underCap(engine: Engine): boolean {
-    if (engine.kind !== "github") return true;
-    const used = this.state.githubCalls.day === today() ? this.state.githubCalls.count : 0;
-    return used < this.state.settings.githubDailyCap;
+    const c = this.state.calls[engine.provider.id];
+    const used = c && c.day === today() ? c.count : 0;
+    const cap = engine.provider.id === "github" ? this.state.settings.githubDailyCap : engine.provider.dailyCap;
+    return used < cap;
   }
 
   async cycle(): Promise<void> {
@@ -86,9 +88,10 @@ export class Agent {
     try {
       const f = await net();
       const githubToken = await getSecret("github_token");
-      const engines = (await detectEngines(f, s, githubToken)).filter((e) => this.underCap(e));
+      const keys = { github_token: githubToken, gemini_key: await getSecret("gemini_key"), groq_key: await getSecret("groq_key"), openrouter_key: await getSecret("openrouter_key") };
+      const engines = (await detectEngines(f, s, keys)).filter((e) => this.underCap(e));
       if (engines.length === 0) {
-        this.hooks.log("No free engine is available: start Ollama, or add a GitHub token in Settings (or today's free quota is used).", "bad");
+        this.hooks.log("No free AI is available: add a free Gemini or Groq key in Settings (or today's free limits are used up).", "bad");
         this.schedule(Math.max(10, s.intervalMin));
         return;
       }
@@ -119,7 +122,7 @@ export class Agent {
       if (!this.underCap(engine)) continue;
       try {
         this.countCall(engine);
-        const text = await chat(ctx.f, engine, messages, { ollamaUrl: this.state.settings.ollamaUrl, githubToken: ctx.githubToken, signal: ctx.signal });
+        const text = await chat(ctx.f, engine, messages, ctx.signal);
         return { text, engine };
       } catch (error) {
         if (ctx.signal.aborted) throw error;

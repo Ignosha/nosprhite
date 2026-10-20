@@ -5,12 +5,14 @@
  * keychain through the Rust side, and are read only when needed.
  */
 import type { Kind, Offer } from "./guard";
+import type { ProviderId } from "./llm";
 
 export type Settings = {
   owner: string;
   repo: string;
   ollamaUrl: string;
-  ollamaModel: string;
+  /** A model to use instead of the one picked automatically, per provider. */
+  pinned: Partial<Record<ProviderId, string>>;
   githubModel: string;
   intervalMin: number;
   githubDailyCap: number;
@@ -35,7 +37,8 @@ export type State = {
   settings: Settings;
   running: boolean;
   jobIndex: number;
-  githubCalls: { day: string; count: number };
+  /** Calls made today, per provider, to stay inside each free limit. */
+  calls: Partial<Record<ProviderId, { day: string; count: number }>>;
   inbox: Item[];
   log: LogLine[];
 };
@@ -45,14 +48,14 @@ export const DEFAULTS: State = {
     owner: "Ignosha",
     repo: "noshashi",
     ollamaUrl: "http://localhost:11434",
-    ollamaModel: "",
+    pinned: {},
     githubModel: "openai/gpt-4.1-mini",
     intervalMin: 30,
     githubDailyCap: 40,
   },
   running: false,
   jobIndex: -1,
-  githubCalls: { day: "", count: 0 },
+  calls: {},
   inbox: [],
   log: [],
 };
@@ -91,7 +94,7 @@ export async function saveState(state: State): Promise<void> {
   }
 }
 
-export type SecretName = "github_token" | "stripe_key";
+export type SecretName = "github_token" | "stripe_key" | "gemini_key" | "groq_key" | "openrouter_key";
 
 export async function getSecret(name: SecretName): Promise<string | null> {
   if (!inTauri()) return null;

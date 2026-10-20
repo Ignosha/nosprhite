@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { safePath, safeApi } from "../src/agent/tools";
-import { pickLocal } from "../src/agent/llm";
+import { pickModel } from "../src/agent/llm";
 import { keyMode, form } from "../src/agent/stripe";
 import { nextJob, JOBS } from "../src/agent/jobs";
 import { step, findPath, walkable, doorTile, BUILDINGS } from "../src/world";
@@ -18,12 +18,18 @@ describe("tool fences", () => {
   });
 });
 
-describe("engines", () => {
-  it("prefers a capable local model, else the one asked for, else any", () => {
-    expect(pickLocal(["llama3.2:3b", "qwen2.5:14b"], "")).toBe("qwen2.5:14b");
-    expect(pickLocal(["llama3.2:3b", "qwen2.5:14b"], "llama3.2:3b")).toBe("llama3.2:3b");
-    expect(pickLocal(["phi3:mini"], "")).toBe("phi3:mini");
-    expect(pickLocal([], "")).toBeNull();
+describe("engines pick the best free model each provider lists", () => {
+  it("Gemini: the newest full Flash, not Lite, image or audio models", () => {
+    expect(pickModel("gemini", ["models/gemini-2.5-flash", "models/gemini-3-flash", "models/gemini-3-flash-lite", "models/gemini-3-flash-image", "models/gemini-2.5-pro"])).toBe("gemini-3-flash");
+    expect(pickModel("gemini", ["models/gemini-2.5-flash-lite", "models/text-embedding-004"])).toBe("gemini-2.5-flash-lite");
+  });
+  it("Groq: gpt-oss-120b first, never speech or guard models", () => {
+    expect(pickModel("groq", ["whisper-large-v3", "meta-llama/llama-guard-4-12b", "qwen/qwen3-32b", "openai/gpt-oss-120b"])).toBe("openai/gpt-oss-120b");
+    expect(pickModel("groq", ["whisper-large-v3", "qwen/qwen3-32b"])).toBe("qwen/qwen3-32b");
+  });
+  it("OpenRouter: only free models", () => {
+    expect(pickModel("openrouter", ["openai/gpt-4o", "deepseek/deepseek-chat-v3:free", "meta-llama/llama-3.3-70b-instruct:free"])).toBe("deepseek/deepseek-chat-v3:free");
+    expect(pickModel("openrouter", ["openai/gpt-4o"])).toBeNull();
   });
 });
 

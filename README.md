@@ -24,10 +24,12 @@ Every job: read with read-only tools → draft → a critic pass → the guard
    asks because the app is not signed with a paid Apple Developer certificate.
    If it still refuses, run this once in Terminal:
    `xattr -cr /Applications/Nosprhite.app`
-4. Install **Ollama** from [ollama.com](https://ollama.com) and run
-   `ollama pull qwen2.5:7b` (or `qwen2.5:14b` with 16 GB of memory or more).
-5. Open Nosprhite, add your keys in **Settings** (steps 4 and 5 below), and flip
-   the switch to **ON**.
+4. Get a **free AI key** (2 minutes, no card): open
+   [aistudio.google.com/apikey](https://aistudio.google.com/apikey), sign in with
+   Google, and press **Create API key**. For a second, very fast backup, also get one at
+   [console.groq.com/keys](https://console.groq.com/keys).
+5. Open Nosprhite › **Settings**, paste the key(s) under **Free AI**, press
+   **Save**, then flip the switch to **ON**.
 
 ## Or build it yourself (about 15 minutes, all free)
 
@@ -35,21 +37,16 @@ Every job: read with read-only tools → draft → a critic pass → the guard
    [Rust](https://rustup.rs). On Windows also the
    [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
    (WebView2 and the C++ build tools); on Linux the WebKitGTK packages listed there.
-2. **Install Ollama** from [ollama.com](https://ollama.com) and pull a model:
-   ```
-   ollama pull qwen2.5:7b      # 8 GB of memory is enough
-   ollama pull qwen2.5:14b     # better, if you have 16 GB or more
-   ```
+2. **Get a free AI key** as in step 4 above (Gemini, and optionally Groq).
 3. **Run Nosprhite** from this folder:
    ```
    npm install
    npm run app            # opens the app
    npm run app:build      # or build an installer into src-tauri/target/release/bundle
    ```
-4. In **Settings**, add a GitHub fine-grained token for `Ignosha/noshashi` with
+4. In **Settings**, paste your free AI key(s) under **Free AI**. Then add a GitHub fine-grained token for `Ignosha/noshashi` with
    *Issues: read and write* and *Models: read*. That lets the village read the
-   repo, file issues you approve, and fall back to GitHub Models' free tier
-   when Ollama is not running.
+   repo, file issues you approve, and use GitHub Models' free tier as one more backup.
 5. Optional, for **Stripe**: add a *restricted* key (Stripe → Developers → API
    keys → Create restricted key) with **Write** on Products, Prices and Payment
    Links and **Read** on Balance and Payment Intents, and nothing else. Start
@@ -67,16 +64,30 @@ Any of these stops it at once, including a request already in flight:
 
 It remembers whether you left it on or off.
 
-## What it can do, honestly
+## Which AI it uses
 
-- It runs on free models: a 7 to 14 billion parameter model on your computer,
-  or GitHub Models' free tier (roughly 50 to 150 requests a day, about 8,000
-  tokens per request). These are **not** on par with Claude. They do well at
-  one focused task with the material in front of them, and poorly at long,
-  many-step work, which is why each job is small and every answer is checked.
-- Expect some ideas to be weak. Owl's reviews and the Dismiss button are there
-  for that.
-- It works while your computer is on and the app is open.
+All free, used in this order; when one reaches its free daily limit the
+village moves to the next:
+
+| Provider | Free limit (roughly) | Key |
+|---|---|---|
+| Google Gemini (Flash) | ~1,500 requests a day | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| Groq (gpt-oss-120b) | ~1,000 requests a day | [console.groq.com/keys](https://console.groq.com/keys) |
+| OpenRouter free models | ~50 requests a day | [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys) |
+| GitHub Models | ~50 to 150 a day | your GitHub token |
+| Ollama (optional) | your computer | none; only if it happens to be running |
+
+The app asks each provider which models it has and picks its best free one,
+so it keeps working when providers rename models. You can name a model in
+Settings instead. Free limits change; the village stops a little short of them.
+
+What to expect, honestly: Gemini Flash and gpt-oss-120b are far more capable
+than a small model on your computer, and handle one focused job well. They are
+still not Claude, and long, many-step work is not what the village asks of
+them. Some ideas will be weak; Owl's reviews and the Dismiss button are there
+for that. On the free tier, Google may use what is sent to improve its models.
+The village only sends NOSHASHI's public code, public ledger data and its own
+drafts, never your keys. It works while your computer is on and the app is open.
 
 ## What it can never do
 

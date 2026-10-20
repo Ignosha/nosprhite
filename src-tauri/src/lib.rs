@@ -13,7 +13,7 @@ const SERVICE: &str = "app.nosprhite";
 
 /// Only these names can be stored or read. The window cannot use this to
 /// reach any other entry in the keychain.
-const ALLOWED: [&str; 2] = ["github_token", "stripe_key"];
+const ALLOWED: [&str; 5] = ["github_token", "stripe_key", "gemini_key", "groq_key", "openrouter_key"];
 
 fn entry(name: &str) -> Result<keyring::Entry, String> {
     if !ALLOWED.contains(&name) {

@@ -5,7 +5,7 @@
  */
 import { Agent } from "./agent/loop";
 import { World } from "./world";
-import { loadState, saveState, getSecret, setSecret, type State, type Item } from "./agent/store";
+import { loadState, saveState, getSecret, setSecret, type State, type Item, type SecretName } from "./agent/store";
 import { detectEngines } from "./agent/llm";
 import { net } from "./agent/net";
 import { fileIssue } from "./agent/github";
@@ -179,41 +179,66 @@ function renderLog() {
 }
 
 /* ── settings ─────────────────────────────────────────────────────── */
+/** The free AI keys, in the order the village uses them. */
+const AI_KEYS: Array<{ id: "gemini" | "groq" | "openrouter"; secret: SecretName; name: string; how: string }> = [
+  { id: "gemini", secret: "gemini_key", name: "Google Gemini key (free, recommended)", how: "aistudio.google.com/apikey › Create API key. Free, no card. The smartest free option." },
+  { id: "groq", secret: "groq_key", name: "Groq key (free)", how: "console.groq.com/keys › Create API Key. Free, no card. Very fast." },
+  { id: "openrouter", secret: "openrouter_key", name: "OpenRouter key (free models)", how: "openrouter.ai/settings/keys › Create key. Uses only its free models (about 50 a day)." },
+];
+
 async function renderSettings() {
   const s = state.settings;
-  const has = async (n: "github_token" | "stripe_key") => ((await getSecret(n)) ? "saved in your keychain" : "not set");
+  const has = async (n: SecretName) => ((await getSecret(n)) ? "saved in your keychain" : "not set");
+  const aiRows = (
+    await Promise.all(
+      AI_KEYS.map(
+        async (k) => `
+      <label for="s-${k.id}">${esc(k.name)} <span class="note">(${await has(k.secret)})</span></label>
+      <div class="row"><input id="s-${k.id}" type="password" autocomplete="off" placeholder="Paste to replace; leave empty to keep" style="flex:3">
+        <input id="s-${k.id}-model" value="${esc(s.pinned[k.id] ?? "")}" placeholder="model: auto" style="flex:1"></div>
+      <p class="note">${esc(k.how)}</p>`,
+      ),
+    )
+  ).join("");
   $("tab-settings").innerHTML = `
     <form id="settings-form">
+      <h3 style="margin:4px 0">Free AI</h3>
+      <p class="note">Add at least one. The village uses them in this order and moves to the next when one reaches its free daily limit. Each picks its provider's best free model by itself unless you name one.</p>
+      ${aiRows}
+      <h3 style="margin:18px 0 4px">GitHub and Stripe</h3>
       <label for="s-gh">GitHub token <span class="note">(${await has("github_token")})</span></label>
       <input id="s-gh" type="password" autocomplete="off" placeholder="Paste to replace; leave empty to keep">
-      <p class="note">A fine-grained token for ${esc(s.owner)}/${esc(s.repo)} with Issues: read and write, and Models: read. Used to read the repo, file issues you approve, and for GitHub Models' free tier.</p>
+      <p class="note">A fine-grained token for ${esc(s.owner)}/${esc(s.repo)} with Issues: read and write, and Models: read. Used to read the repo, file issues you approve, and as one more free AI (GitHub Models).</p>
       <label for="s-stripe">Stripe restricted key <span class="note">(${await has("stripe_key")})</span></label>
       <input id="s-stripe" type="password" autocomplete="off" placeholder="rk_test_… or rk_live_…">
       <p class="note">Create it in Stripe › Developers › API keys › Restricted key, with Write on Products, Prices and Payment Links, and Read on Balance and Payment Intents. Nothing else. Start with a test key.</p>
+      <h3 style="margin:18px 0 4px">Village</h3>
       <label for="s-owner">Repository</label>
       <div class="row"><input id="s-owner" value="${esc(s.owner)}" style="flex:1"><input id="s-repo" value="${esc(s.repo)}" style="flex:1"></div>
-      <label for="s-ollama">Ollama address and model</label>
-      <div class="row"><input id="s-ollama" value="${esc(s.ollamaUrl)}" style="flex:2"><input id="s-omodel" value="${esc(s.ollamaModel)}" placeholder="auto" style="flex:1"></div>
-      <label for="s-gmodel">GitHub Models model</label>
-      <input id="s-gmodel" value="${esc(s.githubModel)}">
       <label for="s-interval">Minutes between jobs, and GitHub Models calls per day</label>
       <div class="row"><input id="s-interval" type="number" min="5" max="1440" value="${s.intervalMin}" style="flex:1"><input id="s-cap" type="number" min="0" max="150" value="${s.githubDailyCap}" style="flex:1"></div>
+      <details style="margin-top:12px"><summary class="note">Optional: Ollama on this computer (used last, only if running)</summary>
+        <div class="row" style="margin-top:6px"><input id="s-ollama" value="${esc(s.ollamaUrl)}" style="flex:2"><input id="s-ollama-model" value="${esc(s.pinned.ollama ?? "")}" placeholder="model: auto" style="flex:1"></div>
+      </details>
       <div class="row" style="margin-top:14px"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="s-test">Check engines</button></div>
       <p class="note" id="s-msg"></p>
     </form>`;
   $("settings-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const v = (id: string) => ($(id) as HTMLInputElement).value.trim();
+    const pinned: State["settings"]["pinned"] = {};
+    for (const k of AI_KEYS) if (v(`s-${k.id}-model`)) pinned[k.id] = v(`s-${k.id}-model`);
+    if (v("s-ollama-model")) pinned.ollama = v("s-ollama-model");
     Object.assign(state.settings, {
       owner: v("s-owner") || s.owner,
       repo: v("s-repo") || s.repo,
       ollamaUrl: v("s-ollama") || s.ollamaUrl,
-      ollamaModel: v("s-omodel"),
-      githubModel: v("s-gmodel") || s.githubModel,
+      pinned,
       intervalMin: Math.min(1440, Math.max(5, Number(v("s-interval")) || 30)),
       githubDailyCap: Math.min(150, Math.max(0, Number(v("s-cap")) || 0)),
     });
     try {
+      for (const k of AI_KEYS) if (v(`s-${k.id}`)) await setSecret(k.secret, v(`s-${k.id}`));
       if (v("s-gh")) await setSecret("github_token", v("s-gh"));
       if (v("s-stripe")) {
         if (keyMode(v("s-stripe")) === "invalid") throw new Error("That is not a Stripe secret or restricted key (rk_… or sk_…).");
@@ -231,8 +256,16 @@ async function renderSettings() {
 }
 
 async function showEngine(verbose = false) {
-  const engines = await detectEngines(await net(), state.settings, await getSecret("github_token"));
-  const text = engines.length ? `Engine: ${engines.map((e) => e.label).join(", then ")}` : "Engine: none found. Start Ollama, or add a GitHub token in Settings.";
+  const keys = {
+    github_token: await getSecret("github_token"),
+    gemini_key: await getSecret("gemini_key"),
+    groq_key: await getSecret("groq_key"),
+    openrouter_key: await getSecret("openrouter_key"),
+  };
+  const engines = await detectEngines(await net(), state.settings, keys);
+  const text = engines.length
+    ? `AI: ${engines.map((e) => e.label).join(", then ")}`
+    : "AI: none yet. Add a free Gemini or Groq key in Settings.";
   $("engine").textContent = text;
   if (verbose) alert(text);
 }
